@@ -6,11 +6,35 @@ import Image from "next/image"
 import { useRouter } from "next/navigation";
 import { useState } from "react"
 import { toast } from "sonner";
+import { createPlayground } from "../actions";
 
 
 const AddNewButton = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<{
+    title: string;
+    template: "REACT" | "NEXTJS" | "EXPRESS" | "VUE" | "HONO" | "ANGULAR";
+    description?: string;
+  } | null>(null)
+  const router = useRouter()
+  const handleSubmit = async(data: {
+    title: string;
+    template: "REACT" | "NEXTJS" | "EXPRESS" | "VUE" | "HONO" | "ANGULAR";
+    description?: string;
+  }) => {
+    setSelectedTemplate(data)
+    const res = await createPlayground(data);
+    toast("Playground created successfully");
+    // Here you would typically handle the creation of a new playground
+    // with the selected template data
+    console.log("Creating new playground:", data)
+    setIsModalOpen(false)
+    router.push(`/playground/${res?.id}`)
+  }
   return (
+  <>
     <div
+    onClick={() => setIsModalOpen(true)}
     className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer 
         transition-all duration-300 ease-in-out
         hover:bg-background hover:border-[#E93F3F] hover:scale-[1.02]
@@ -39,6 +63,12 @@ const AddNewButton = () => {
           />
         </div>
     </div>
+    <TemplateSelectionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSubmit={handleSubmit}
+      />
+  </>
   )
 }
 
