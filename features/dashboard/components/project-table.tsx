@@ -175,34 +175,34 @@ export default function ProjectTable({
 
   return (
     <>
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
+      <div className="w-full max-w-full border rounded-lg overflow-hidden">
+        <Table className="w-full table-fixed [&_td]:whitespace-normal [&_td]:break-words">
           <TableHeader>
             <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Template</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead className="w-12.5">Actions</TableHead>
+              <TableHead className="w-[52%] whitespace-nowrap">Project</TableHead>
+              <TableHead className="w-[10%] whitespace-nowrap">Template</TableHead>
+              <TableHead className="w-[12%] whitespace-nowrap">Created</TableHead>
+              <TableHead className="w-[20%] whitespace-nowrap">User</TableHead>
+              <TableHead className="w-[6.5rem] whitespace-nowrap text-right pr-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {projects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">
-                  <div className="flex flex-col">
+                  <div className="flex min-w-0 flex-col">
                     <Link
                       href={`/playground/${project.id}`}
-                      className="hover:underline"
+                      className="truncate hover:underline"
                     >
-                      <span className="font-semibold">{project.title}</span>
+                      <span className="block truncate font-semibold">{project.title}</span>
                     </Link>
                     <span className="text-sm text-gray-500 line-clamp-1">
                       {project.description || "No description"}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="pr-1">
                   <Badge
                     variant="outline"
                     className="bg-[#E93F3F15] text-[#E93F3F] border-[#E93F3F]"
@@ -210,11 +210,11 @@ export default function ProjectTable({
                     {project.template}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs whitespace-nowrap">
                   {format(new Date(project.createdAt), "MMM d, yyyy")}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <div className="w-8 h-8 rounded-full overflow-hidden">
                       <Image
                         src={project.user.image || "/placeholder.svg"}
@@ -224,10 +224,10 @@ export default function ProjectTable({
                         className="object-cover"
                       />
                     </div>
-                    <span className="text-sm">{project.user.name || "Unknown user"}</span>
+                    <span className="text-sm truncate">{project.user.name || "Unknown user"}</span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap text-right pr-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -378,3 +378,4 @@ export default function ProjectTable({
     </>
   );
 }
+

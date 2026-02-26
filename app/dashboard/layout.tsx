@@ -34,7 +34,7 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <div className="flex min-h-screen w-full overflow-x-hidden">
         <DashboardSidebar initialPlaygroundData={formattedPlaygroundData} />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 min-w-0">{children}</main>
       </div>
     </SidebarProvider>
   )

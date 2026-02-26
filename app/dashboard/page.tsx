@@ -21,7 +21,7 @@ const DashboardMainPage = async () => {
   const playgrounds = await getAllPlaygroundForUser();
   console.log(playgrounds);
   return (
-    <div className="flex flex-col justify-start items-center min-h-screen mx-auto max-w-7xl px-4 py-10">
+    <div className="flex flex-col justify-start items-center min-h-screen mx-auto max-w-7xl w-full px-4 py-10 overflow-x-hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
         <AddNewButton />
         <AddRepo />
