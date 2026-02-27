@@ -1,4 +1,4 @@
-import { readTemplateStructureFromJson, saveTemplateStructureToJson } from "@/features/playground/libs/path-to-json";
+import { readTemplateStructureFromJson, saveTemplateStructureToJson } from "@/features/playground/lib/path-to-json";
 import db from "@/lib/db";
 import { templatePaths } from "@/lib/template";
 import path from "path";

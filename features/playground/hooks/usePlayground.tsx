@@ -3,10 +3,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { TemplateFolder } from '../lib/path-to-json';
 import { getPlaygroundById } from '@/features/playground/actions';
-
+import { SaveUpdatedCode } from '@/features/playground/actions';
 interface PlaygroundData {
   id: string;
   name?: string;
+  title?: string;
   templateFiles?: Array<{
     content: unknown;
   }>;
