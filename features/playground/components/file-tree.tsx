@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { ChevronRight, Edit3, File, FilePlus, Folder, FolderPlus, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -22,6 +22,7 @@ interface FileTreeProps {
 export function FileTree({ data, onFileSelect, selectedFile, onTreeChange }: FileTreeProps) {
   const [tree, setTree] = useState<TemplateFolder | null>(data)
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
+  const [isExplorerOpen, setIsExplorerOpen] = useState(true)
   const [newFileDialog, setNewFileDialog] = useState<{ isOpen: boolean; folderPath: number[] }>({
     isOpen: false,
     folderPath: [],
@@ -54,8 +55,6 @@ export function FileTree({ data, onFileSelect, selectedFile, onTreeChange }: Fil
   useEffect(() => {
     setTree(data)
   }, [data])
-
-  const rootPath = useMemo(() => "root", [])
 
   const setExpanded = (path: string, next: boolean) => {
     setExpandedFolders((prev) => ({ ...prev, [path]: next }))
@@ -235,44 +234,52 @@ export function FileTree({ data, onFileSelect, selectedFile, onTreeChange }: Fil
   if (!tree) return null
 
   return (
-    <div className="h-full w-full overflow-auto p-2">
-      <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">File Explorer</span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => openAddDialog([], "file")}
-            title="Add file"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => openAddDialog([], "folder")}
-            title="Add folder"
-          >
-            <FolderPlus className="h-4 w-4" />
-          </Button>
-        </div>
+    <div className="h-full w-full overflow-auto bg-[#12131a] p-2">
+      <div className="mb-1 flex items-center justify-between px-1">
+        <button
+          type="button"
+          onClick={() => setIsExplorerOpen((prev) => !prev)}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", isExplorerOpen && "rotate-90")} />
+          <span>Files Explorer</span>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6" title="Add">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openAddDialog([], "file")}>
+              <FilePlus className="mr-2 h-4 w-4" />
+              New File
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openAddDialog([], "folder")}>
+              <FolderPlus className="mr-2 h-4 w-4" />
+              New Folder
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <FileTreeNode
-        item={tree}
-        itemPath={[]}
-        pathKey={rootPath}
-        level={0}
-        onFileSelect={onFileSelect}
-        selectedFile={selectedFile}
-        openAddDialog={openAddDialog}
-        renameItem={renameItem}
-        deleteItem={deleteItem}
-        isExpanded={isExpanded}
-        setExpanded={setExpanded}
-      />
+      {isExplorerOpen &&
+        tree.items.map((childItem, index) => (
+          <FileTreeNode
+            key={`root-${index}`}
+            item={childItem}
+            itemPath={[index]}
+            pathKey={`root-${index}`}
+            level={0}
+            onFileSelect={onFileSelect}
+            selectedFile={selectedFile}
+            openAddDialog={openAddDialog}
+            renameItem={renameItem}
+            deleteItem={deleteItem}
+            isExpanded={isExpanded}
+            setExpanded={setExpanded}
+          />
+        ))}
 
       <NewFileDialog
         isOpen={newFileDialog.isOpen}
@@ -354,20 +361,20 @@ function FileTreeNode({
     return (
       <div
         className={cn(
-          "group flex items-center py-1 px-2 text-sm cursor-pointer hover:bg-accent/50 rounded-md",
-          isSelected && "bg-accent text-accent-foreground",
+          "group flex h-7 cursor-pointer items-center px-1.5 text-[13px] hover:bg-white/5",
+          isSelected && "bg-white/10 text-white",
         )}
-        style={{ paddingLeft: `${8 + level * 12}px` }}
+        style={{ paddingLeft: `${6 + level * 12}px` }}
         onClick={() => onFileSelect(item)}
       >
-        <File className="h-4 w-4 mr-2 shrink-0" />
+        <File className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate">{fileName}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="ml-auto h-6 w-6 opacity-0 group-hover:opacity-100"
+              className="ml-auto h-5 w-5 opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
               title="File options"
             >
@@ -397,11 +404,11 @@ function FileTreeNode({
       <Collapsible open={expanded} onOpenChange={(next) => setExpanded(pathKey, next)} className="w-full">
         <div className="group flex items-center">
           <CollapsibleTrigger
-            className="flex min-w-0 flex-1 items-center py-1 px-2 text-sm hover:bg-accent/50 rounded-md"
-            style={{ paddingLeft: `${8 + level * 12}px` }}
+            className="flex h-7 min-w-0 flex-1 items-center px-1.5 text-[13px] hover:bg-white/5"
+            style={{ paddingLeft: `${6 + level * 12}px` }}
           >
-            <ChevronRight className={cn("h-4 w-4 mr-1 shrink-0 transition-transform", expanded && "rotate-90")} />
-            <Folder className="h-4 w-4 mr-2 shrink-0" />
+            <ChevronRight className={cn("mr-1 h-3.5 w-3.5 shrink-0 transition-transform", expanded && "rotate-90")} />
+            <Folder className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{item.folderName}</span>
           </CollapsibleTrigger>
           <DropdownMenu>
@@ -409,14 +416,14 @@ function FileTreeNode({
               <Button
                 variant="ghost"
                 size="icon"
-                className="mr-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                className="mr-1 h-5 w-5 opacity-0 group-hover:opacity-100"
                 onClick={(e) => e.stopPropagation()}
                 title="Folder options"
               >
                 <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem onClick={() => openAddDialog(itemPath, "file")}>
                 <FilePlus className="mr-2 h-4 w-4" />
                 New File
@@ -438,7 +445,7 @@ function FileTreeNode({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <CollapsibleContent className="pl-4 border-l border-border/50 ml-3 mt-1">
+        <CollapsibleContent className="pl-3">
           {item.items.map((childItem, index) => (
             <FileTreeNode
               key={`${pathKey}-${index}`}
