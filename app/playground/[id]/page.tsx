@@ -19,13 +19,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X } from "lucide-react"
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable"
 import { PlaygroundEditor } from "@/features/playground/components/playground-editor"
-
+import { useWebContainer } from "@/features/webcontainers/hooks/useWebContainer"
+import { transformToWebContainerFormat } from "@/features/webcontainers/hooks/transformer"
+import { is } from "date-fns/locale"
+import  LoadingStep  from "@/components/ui/loader"
+import WebContainerPreview from "@/features/webcontainers/components/webcontainer-preview" 
 const page = () => {
   const { id } = useParams<{ id: string }>()
   const { playgroundData, templateData, saveTemplateData } = usePlayground(id)
   const [isExplorerOpen, setIsExplorerOpen] = React.useState(true)
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true)
-  
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const {
     activeFileId,
@@ -47,6 +51,16 @@ const page = () => {
     setOpenFiles,
   } = useFileExplorer();
 
+  const {
+    serverUrl,
+    isLoading: ContainerLoading,
+    error: containerError,
+    instance,
+    writeFileSync
+
+    //@ts-ignore
+  } = useWebContainer({templateData})
+ 
   const activeFile = openFiles.find((file) => file.id === activeFileId)
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges)
 
@@ -78,6 +92,30 @@ const page = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+        <div className="w-full max-w-md p-6 rounded-lg shadow-sm border">
+          <h2 className="text-xl font-semibold mb-6 text-center">
+            Loading Playground
+          </h2>
+          <div className="mb-8">
+            <LoadingStep
+              currentStep={1}
+              step={1}
+              label="Loading playground data"
+            />
+            <LoadingStep
+              currentStep={2}
+              step={2}
+              label="Setting up environment"
+            />
+            <LoadingStep currentStep={3} step={3} label="Ready to code" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -264,6 +302,25 @@ const page = () => {
                         onTriggerSuggestion={() => {}}
                       />
                     </ResizablePanel>
+                    {
+                      isPreviewVisible && (
+                        <>
+                        <ResizableHandle/>
+                        <ResizablePanel defaultSize={50}>
+                          <WebContainerPreview
+                            templateData={templateData!}
+                            serverUrl={serverUrl || ""}
+                            isLoading={ContainerLoading}
+                            error={containerError ? containerError.message : null}
+                            instance={instance}
+                            writeFileSync={(path: string, content: string) => Promise.resolve(writeFileSync(path, content))}
+                            forceResetup={false}
+                          />
+                        </ResizablePanel>
+                        </>
+                      )
+                    }
+                    
 
                     
                   </ResizablePanelGroup>

@@ -6,6 +6,19 @@ import { SaveUpdatedCode } from "../actions";
 import { generateFileId } from "../lib";
 import { usePlayground } from "./usePlayground";
 
+// Helper function to find the first file in a template structure
+const findFirstFile = (folder: TemplateFolder): TemplateFile | null => {
+  for (const item of folder.items) {
+    if ("filename" in item) {
+      return item;
+    } else if ("folderName" in item) {
+      const file = findFirstFile(item);
+      if (file) return file;
+    }
+  }
+  return null;
+};
+
 interface FileExplorerState {
   playgroundId: string;
   templateData: TemplateFolder | null;
@@ -75,7 +88,16 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
   activeFileId: null,
   editorContent: "",
 
-  setTemplateData: (data) => set({ templateData: data }),
+  setTemplateData: (data) => {
+    set({ templateData: data });
+    // Auto-open the first file if no files are currently open
+    if (data && get().openFiles.length === 0) {
+      const firstFile = findFirstFile(data);
+      if (firstFile) {
+        get().openFile(firstFile);
+      }
+    }
+  },
   setPlaygroundId(id) {
     set({ playgroundId: id });
   },
