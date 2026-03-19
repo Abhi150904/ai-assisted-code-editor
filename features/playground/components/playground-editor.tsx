@@ -39,7 +39,7 @@ export const PlaygroundEditor = ({
   const isAcceptingSuggestionRef = useRef(false)
   const suggestionAcceptedRef = useRef(false)
   const suggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const tabCommandRef = useRef<any>(null)
+  const tabCommandRef = useRef<string | null>(null)
 
   // Generate unique ID for each suggestion
   const generateSuggestionId = () => `suggestion-${Date.now()}-${Math.random()}`
@@ -344,10 +344,6 @@ export const PlaygroundEditor = ({
     })
 
     // CRITICAL: Override Tab key with high priority and prevent default Monaco behavior
-    if (tabCommandRef.current) {
-      tabCommandRef.current.dispose()
-    }
-
     tabCommandRef.current = editor.addCommand(
       monaco.KeyCode.Tab,
       () => {
@@ -512,9 +508,10 @@ export const PlaygroundEditor = ({
         inlineCompletionProviderRef.current = null
       }
       if (tabCommandRef.current) {
-        tabCommandRef.current.dispose()
         tabCommandRef.current = null
       }
+      editorRef.current = null
+      monacoRef.current = null
     }
   }, [])
 

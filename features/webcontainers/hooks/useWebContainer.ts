@@ -6,12 +6,12 @@ import { se } from 'date-fns/locale';
 interface UseWebContainerProps {
     templateData: TemplateFolder;
 }
-interface UseWebContainerReturn {
+export interface UseWebContainerReturn {
     serverUrl: string | null;
     isLoading: boolean;
     error: Error | null;
     instance: WebContainer | null;
-    writeFileSync: (path: string, content: string) => void;
+    writeFileSync: (path: string, content: string) => Promise<void>;
     destroy: () => void;
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback, useEffect } from "react"
 import { PanelLeftClose, PanelLeftOpen, Save } from "lucide-react"
 import { useParams } from "next/navigation"
 import { toast } from "sonner"
@@ -15,35 +15,35 @@ import { Bot } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Settings } from "lucide-react"
 import { FileText } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X } from "lucide-react"
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable"
 import { PlaygroundEditor } from "@/features/playground/components/playground-editor"
-import { useWebContainer } from "@/features/webcontainers/hooks/useWebContainer"
-import { transformToWebContainerFormat } from "@/features/webcontainers/hooks/transformer"
-import { is } from "date-fns/locale"
+import { useWebContainer, UseWebContainerReturn } from "@/features/webcontainers/hooks/useWebContainer"
 import  LoadingStep  from "@/components/ui/loader"
 import WebContainerPreview from "@/features/webcontainers/components/webcontainer-preview" 
-const page = () => {
+import { findFilePath } from "@/features/playground/lib"
+import type { TemplateFolder, TemplateItem } from "@/features/playground/lib/path-to-json"
+import type { TemplateFile } from "@/features/playground/types"
+import { AlertCircle } from "lucide-react"
+
+const EMPTY_TEMPLATE_DATA: TemplateFolder = {
+  folderName: "Root",
+  items: [],
+}
+
+const Page = () => {
   const { id } = useParams<{ id: string }>()
-  const { playgroundData, templateData, saveTemplateData } = usePlayground(id)
+  const { playgroundData, templateData, saveTemplateData, isLoading } = usePlayground(id)
   const [isExplorerOpen, setIsExplorerOpen] = React.useState(true)
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true)
-  const [isLoading, setIsLoading] = React.useState(false);
 
   const {
     activeFileId,
     closeAllFiles,
     openFile,
     closeFile,
-    editorContent,
     updateFileContent,
-    handleAddFile,
-    handleAddFolder,
-    handleDeleteFile,
-    handleDeleteFolder,
-    handleRenameFile,
-    handleRenameFolder,
     openFiles,
     setTemplateData,
     setActiveFileId,
@@ -54,28 +54,179 @@ const page = () => {
   const {
     serverUrl,
     isLoading: ContainerLoading,
-    error: containerError,
+    error: webContainerError,
     instance,
     writeFileSync
-
-    //@ts-ignore
-  } = useWebContainer({templateData})
+  }: UseWebContainerReturn = useWebContainer({ templateData: templateData ?? EMPTY_TEMPLATE_DATA })
  
   const activeFile = openFiles.find((file) => file.id === activeFileId)
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges)
 
-  React.useEffect(() => {
+  const handleFileSelect = (file: TemplateFile) => {
+    openFile(file);
+  };
+
+  useEffect(() => {
     setPlaygroundId(id)
   }, [id, setPlaygroundId])
 
-  React.useEffect(() => {
+  useEffect(() => {
     setTemplateData(templateData ?? null)
   }, [templateData, setTemplateData])
 
-  const handleSave = () => {
-    // TODO: wire save action to editor state/webcontainer sync
-    console.log("Save clicked")
-  }
+  // Handler functions wrapper
+  const handleAddFile = useCallback(
+    (newFile: TemplateFile, parentPath: string) => {
+      return useFileExplorer.getState().handleAddFile(
+        newFile,
+        parentPath,
+        writeFileSync!,
+        instance,
+        saveTemplateData
+      );
+    },
+    [writeFileSync, instance, saveTemplateData]
+  );
+
+  const handleAddFolder = useCallback(
+    (newFolder: TemplateFolder, parentPath: string) => {
+      return useFileExplorer.getState().handleAddFolder(newFolder, parentPath, instance, saveTemplateData);
+    },
+    [instance, saveTemplateData]
+  );
+
+  const handleDeleteFile = useCallback(
+    (file: TemplateFile, parentPath: string) => {
+      return useFileExplorer.getState().handleDeleteFile(file, parentPath, saveTemplateData);
+    },
+    [saveTemplateData]
+  );
+
+  const handleDeleteFolder = useCallback(
+    (folder: TemplateFolder, parentPath: string) => {
+      return useFileExplorer.getState().handleDeleteFolder(folder, parentPath, saveTemplateData);
+    },
+    [saveTemplateData]
+  );
+
+  const handleRenameFile = useCallback(
+    (
+      file: TemplateFile,
+      newFilename: string,
+      newExtension: string,
+      parentPath: string
+    ) => {
+      return useFileExplorer.getState().handleRenameFile(
+        file,
+        newFilename,
+        newExtension,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [saveTemplateData]
+  );
+
+  const handleRenameFolder = useCallback(
+    (folder: TemplateFolder, newFolderName: string, parentPath: string) => {
+      return useFileExplorer.getState().handleRenameFolder(
+        folder,
+        newFolderName,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [saveTemplateData]
+  );
+
+  const handleSave = useCallback(
+    async (fileId?: string) => {
+      const targetFileId = fileId || activeFileId;
+      if (!targetFileId) return;
+
+      const fileToSave = openFiles.find((f) => f.id === targetFileId);
+      if (!fileToSave) return;
+
+      const latestTemplateData = useFileExplorer.getState().templateData;
+      if (!latestTemplateData) return;
+
+      try {
+        const filePath = findFilePath(fileToSave, latestTemplateData);
+        if (!filePath) {
+          toast.error(
+            `Could not find path for file: ${fileToSave.filename}.${fileToSave.fileExtension}`
+          );
+          return;
+        }
+
+        // Update file content in template data (clone for immutability)
+        const updatedTemplateData = JSON.parse(
+          JSON.stringify(latestTemplateData)
+        ) as TemplateFolder
+        const updateNestedFileContent = (items: TemplateItem[]): TemplateItem[] =>
+          items.map((item) => {
+            if ("folderName" in item) {
+              return { ...item, items: updateNestedFileContent(item.items) }
+            } else if (
+              item.filename === fileToSave.filename &&
+              item.fileExtension === fileToSave.fileExtension
+            ) {
+              return { ...item, content: fileToSave.content }
+            }
+            return item
+          })
+        updatedTemplateData.items = updateNestedFileContent(
+          updatedTemplateData.items
+        )
+
+        // Sync with WebContainer
+        if (writeFileSync) {
+          await writeFileSync(filePath, fileToSave.content)
+          if (instance && instance.fs) {
+            await instance.fs.writeFile(filePath, fileToSave.content)
+          }
+        }
+
+        // Use saveTemplateData to persist changes
+        await saveTemplateData(updatedTemplateData)
+        setTemplateData(updatedTemplateData)
+
+        // Update open files
+        const updatedOpenFiles = openFiles.map((f) =>
+          f.id === targetFileId
+            ? {
+                ...f,
+                content: fileToSave.content,
+                originalContent: fileToSave.content,
+                hasUnsavedChanges: false,
+              }
+            : f
+        );
+        setOpenFiles(updatedOpenFiles);
+
+        toast.success(
+          `Saved ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+      } catch (error) {
+        console.error("Error saving file:", error);
+        toast.error(
+          `Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+        throw error;
+      }
+    },
+    [
+      activeFileId,
+      openFiles,
+      writeFileSync,
+      instance,
+      saveTemplateData,
+      setTemplateData,
+      setOpenFiles,
+    ]
+  );
+
+  
   const handleSaveAll = async () => {
     const unsavedFiles = openFiles.filter((f) => f.hasUnsavedChanges);
 
@@ -85,12 +236,37 @@ const page = () => {
     }
 
     try {
-      await Promise.all(unsavedFiles.map((f) => handleSave())); //f.id
+      await Promise.all(unsavedFiles.map((f) => handleSave(f.id)))
       toast.success(`Saved ${unsavedFiles.length} file(s)`);
-    } catch (error) {
+    } catch {
       toast.error("Failed to save some files");
     }
   };
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
+
+  if (webContainerError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold text-red-600 mb-2">
+          Something went wrong
+        </h2>
+        <p className="text-gray-600 mb-4">{webContainerError.message || String(webContainerError)}</p>
+        <Button onClick={() => window.location.reload()} variant="destructive">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -128,9 +304,12 @@ const page = () => {
         {isExplorerOpen && (
           <FileTree
             data={templateData}
-            onFileSelect={openFile}
+            onFileSelect={handleFileSelect}
             selectedFile={activeFile}
-            onTreeChange={saveTemplateData}
+            onTreeChange={async (nextTree) => {
+              setTemplateData(nextTree);
+              await saveTemplateData(nextTree);
+            }}
           />
         )}
       </aside>
@@ -200,7 +379,7 @@ const page = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={()=>{}}
+                      onClick={()=> {}}
                       disabled={!hasUnsavedChanges}
                     >
                       <Bot className="h-4 w-4" />
@@ -311,7 +490,7 @@ const page = () => {
                             templateData={templateData!}
                             serverUrl={serverUrl || ""}
                             isLoading={ContainerLoading}
-                            error={containerError ? containerError.message : null}
+                            error={null}
                             instance={instance}
                             writeFileSync={(path: string, content: string) => Promise.resolve(writeFileSync(path, content))}
                             forceResetup={false}
@@ -346,4 +525,4 @@ const page = () => {
   )
 }
 
-export default page
+export default Page
