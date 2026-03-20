@@ -12,7 +12,7 @@ interface PlaygroundEditorProps {
   suggestion: string | null
   suggestionLoading: boolean
   suggestionPosition: { line: number; column: number } | null
-  onAcceptSuggestion: (editor: any, monaco: any) => void
+  onClearAcceptedSuggestion: (editor: any) => void
   onRejectSuggestion: (editor: any) => void
   onTriggerSuggestion: (type: string, editor: any) => void
 }
@@ -24,7 +24,7 @@ export const PlaygroundEditor = ({
   suggestion,
   suggestionLoading,
   suggestionPosition,
-  onAcceptSuggestion,
+  onClearAcceptedSuggestion,
   onRejectSuggestion,
   onTriggerSuggestion,
 }: PlaygroundEditorProps) => {
@@ -33,6 +33,7 @@ export const PlaygroundEditor = ({
   const inlineCompletionProviderRef = useRef<any>(null)
   const currentSuggestionRef = useRef<{
     text: string
+    insertText: string
     position: { line: number; column: number }
     id: string
   } | null>(null)
@@ -88,16 +89,31 @@ export const PlaygroundEditor = ({
           }
 
           const suggestionId = generateSuggestionId()
+
+          // Compute line prefix text to avoid duplication
+          const lineText = model.getLineContent(position.lineNumber)
+          const typedPrefix = lineText.substring(0, position.column - 1)
+          const cleanSuggestion = suggestion.replace(/\r/g, "")
+
+          let insertText = cleanSuggestion
+          if (cleanSuggestion.startsWith(typedPrefix)) {
+            insertText = cleanSuggestion.substring(typedPrefix.length)
+          }
+
+          // If suggestion is effectively already in place, don’t show
+          if (!insertText.trim()) {
+            console.log("Skipping completion: suggestion already present")
+            return { items: [] }
+          }
+
           currentSuggestionRef.current = {
-            text: suggestion,
+            text: cleanSuggestion,
+            insertText,
             position: suggestionPosition,
             id: suggestionId,
           }
 
-          console.log("Providing inline completion", { suggestionId, suggestion: suggestion.substring(0, 50) + "..." })
-
-          // Clean the suggestion text (remove \r characters)
-          const cleanSuggestion = suggestion.replace(/\r/g, "")
+          console.log("Providing inline completion", { suggestionId, insertText: insertText.substring(0, 50) + "..." })
 
           return {
             items: [
@@ -218,8 +234,8 @@ export const PlaygroundEditor = ({
       // Clear the suggestion
       clearCurrentSuggestion()
 
-      // Call the parent's accept handler
-      onAcceptSuggestion(editor, monaco)
+      // Clear the parent suggestion state without re-inserting text.
+      onClearAcceptedSuggestion(editor)
 
       return true
     } catch (error) {
@@ -235,7 +251,7 @@ export const PlaygroundEditor = ({
         console.log("Reset suggestionAcceptedRef flag")
       }, 1000) // Increased delay to 1 second
     }
-  }, [clearCurrentSuggestion, onAcceptSuggestion])
+  }, [clearCurrentSuggestion, onClearAcceptedSuggestion])
 
   // Check if there's an active inline suggestion at current position
   const hasActiveSuggestionAtPosition = useCallback(() => {

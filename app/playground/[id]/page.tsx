@@ -26,6 +26,8 @@ import { findFilePath } from "@/features/playground/lib"
 import type { TemplateFolder, TemplateItem } from "@/features/playground/lib/path-to-json"
 import type { TemplateFile } from "@/features/playground/types"
 import { AlertCircle } from "lucide-react"
+import ToggleAI from "@/features/playground/components/toggle-ai"
+import { useAISuggestions } from "@/features/playground/hooks/useAiSuggestions"
 
 const EMPTY_TEMPLATE_DATA: TemplateFolder = {
   folderName: "Root",
@@ -58,6 +60,8 @@ const Page = () => {
     instance,
     writeFileSync
   }: UseWebContainerReturn = useWebContainer({ templateData: templateData ?? EMPTY_TEMPLATE_DATA })
+
+  const aiSuggestions = useAISuggestions()
  
   const activeFile = openFiles.find((file) => file.id === activeFileId)
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges)
@@ -372,7 +376,16 @@ const Page = () => {
                   <TooltipContent>Save All (Ctrl+Shift+S)</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {/*TODO: Toggle AI */}
+              {/* Toggle AI */}
+              <ToggleAI
+                isEnabled={aiSuggestions.isEnabled}
+                onToggle={(value) => {
+                  if (value !== aiSuggestions.isEnabled) {
+                    aiSuggestions.toggleEnabled()
+                  }
+                }}
+                suggestionLoading={aiSuggestions.isLoading}
+              />
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -473,12 +486,20 @@ const Page = () => {
                         onContentChange={(value) =>
                           activeFileId && updateFileContent(activeFileId, value)
                         }
-                        suggestion={null}
-                        suggestionLoading={false}
-                        suggestionPosition={null}
-                        onAcceptSuggestion={() => {}}
-                        onRejectSuggestion={() => {}}
-                        onTriggerSuggestion={() => {}}
+                        suggestion={aiSuggestions.isEnabled ? aiSuggestions.suggestion : null}
+                        suggestionLoading={aiSuggestions.isEnabled ? aiSuggestions.isLoading : false}
+                        suggestionPosition={aiSuggestions.isEnabled ? aiSuggestions.position : null}
+                        onClearAcceptedSuggestion={(editor) =>
+                          aiSuggestions.isEnabled && aiSuggestions.clearSuggestion(editor)
+                        }
+                        onRejectSuggestion={(editor) =>
+                          aiSuggestions.isEnabled && aiSuggestions.rejectSuggestion(editor)
+                        }
+                        onTriggerSuggestion={(type, editor) => {
+                          if (aiSuggestions.isEnabled) {
+                            aiSuggestions.fetchSuggestion(type, editor)
+                          }
+                        }}
                       />
                     </ResizablePanel>
                     {
